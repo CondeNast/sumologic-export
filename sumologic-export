@@ -211,7 +211,7 @@ class Exporter(object):
         """
         while True:
             try:
-                #Query can be, for example, _source=production-wired-apache-access
+                #The query property below can be any query that is runnable in sumo, for example, _source=production-wired-apache-access
                 resp = post(
                     self.SUMOLOGIC_URL,
                     auth = self.credentials,
