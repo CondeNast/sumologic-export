@@ -28,7 +28,22 @@ from time import sleep
 
 from docopt import docopt
 from requests import get, post
+from requests.auth import HTTPBasicAuth
+import sys
+import logging
 
+try:
+    import httplib
+except ImportError:
+    import http.client as httplib
+
+httplib.HTTPConnection.debuglevel = 1
+
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.DEBUG)
+requests_log.propagate = True
 
 ##### GLOBALS
 VERSION = '0.0.2'
@@ -49,7 +64,7 @@ class Exporter(object):
     DEFAULT_TIMERANGE = timedelta(days=30)
 
     # Sumologic API constants.
-    SUMOLOGIC_URL = 'https://api.sumologic.com/api/v1/search/jobs'
+    SUMOLOGIC_URL = 'https://api.us2.sumologic.com/api/v1/search/jobs'
     SUMOLOGIC_HEADERS = {
         'content-type': 'application/json',
         'accept': 'application/json',
@@ -88,7 +103,7 @@ class Exporter(object):
 
         with open(CONFIG_FILE, 'rb') as cfg:
             creds = loads(cfg.read())
-            self.credentials = (creds['email'], creds['password'])
+            self.credentials = HTTPBasicAuth(creds['email'], creds['password'])
 
         self.cookies = None
 
@@ -196,6 +211,7 @@ class Exporter(object):
         """
         while True:
             try:
+                #Query can be, for example, _source=production-wired-apache-access
                 resp = post(
                     self.SUMOLOGIC_URL,
                     auth = self.credentials,
@@ -211,12 +227,16 @@ class Exporter(object):
                 )
                 if resp.cookies:
                     self.cookies = resp.cookies
-
+                
+                print resp.text
                 if resp.status_code == 202:
                     return '%s/%s' % (self.SUMOLOGIC_URL, resp.json()['id'])
 
-                raise
+                raise Exception(resp.status_code)
+            except TypeError as e:
+                print e
             except:
+                print "Unexpected error:", sys.exc_info()[0]
                 sleep(1)
 
     def get_count(self, job_url):
